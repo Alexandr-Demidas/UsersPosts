@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\User as UserResource;
+use App\Http\Resources\UserCollection;
+use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\Controller;
@@ -10,10 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class UsersDataController extends Controller
 {
-    /**
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+
     public function getAll(Request $request)
     {
         $prepareData = [];
@@ -28,30 +28,40 @@ class UsersDataController extends Controller
 
         $postsLimit = $request->get('posts_limit');
 
-        $query = DB::table('users as u')
-            ->leftJoin('posts as p', 'u.id', '=', 'p.author_id')
-            ->leftJoin('images as i', 'i.id', '=', 'p.image_id')
-            ->select('u.id', 'u.name', 'u.active', 'p.id as post_id', 'p.content as content',
-                'p.created_at as created_at_ts', 'i.url as image_url', 'p.deleted_at as deleted_at')
-            ->where('p.deleted_at', '=', null)
-            ->where('u.active', '=', true)
+        return new UserCollection(User::where('active', '=', true)
+            ->with(['posts' => function ($query) {
+                $query->where('deleted_at', '=', null);
+            }])
             ->limit($postsLimit)
-            ->get()->toArray();
+            ->get());
 
-        foreach ($query as $q) {
-            $prepareData[] = [
-                'id' => $q->id,
-                'name' => $q->name,
-                'post' => [
-                    'id' => $q->post_id,
-                    'content' => $q->content,
-                    'created_at_ts' => $q->created_at_ts,
-                    'image_url' => !empty($q->image_url) ? request()->root() . '\\' . $q->image_url : null,
-                ]
-            ];
-        }
+        /*     вариант через query builder
+                $query = DB::table('users as u')
+                    ->leftJoin('posts as p', 'u.id', '=', 'p.author_id')
+                    ->leftJoin('images as i', 'i.id', '=', 'p.image_id')
+                    ->select('u.id', 'u.name', 'u.active', 'p.id as post_id', 'p.content as content',
+                        'p.created_at as created_at_ts', 'i.url as image_url', 'p.deleted_at as deleted_at')
+                    ->where('p.deleted_at', '=', null)
+                    ->where('u.active', '=', true)
+                    ->limit($postsLimit)
+                    ->get()->toArray();
 
-        return response()->json(['data' => $prepareData], 200);
+                foreach ($query as $q) {
+                    $prepareData[] = [
+                        'id' => $q->id,
+                        'name' => $q->name,
+                        'post' => [
+                            'id' => $q->post_id,
+                            'content' => $q->content,
+                            'created_at_ts' => $q->created_at_ts,
+                            'image_url' => !empty($q->image_url) ? request()->root() . '\\' . $q->image_url : null,
+                        ]
+                    ];
+                }
+
+                return response()->json(['data' => $prepareData], 200);
+            */
+
     }
 
     /**
@@ -70,6 +80,7 @@ class UsersDataController extends Controller
 
         $userId = $request->get('user_id');
 
+        /*    вариант через query builder */
         $query = DB::table('comments as c')
             ->leftJoin('posts as p', 'p.id', '=', 'c.post_id')
             ->select('c.*', 'p.image_id')
@@ -78,9 +89,13 @@ class UsersDataController extends Controller
             ->orderBy('c.created_at', 'desc')
             ->get()->toArray();
 
-//        $query = DB::select('select * from `comments` as c left join `posts` as p
-//                        on p.id = c.post_id where c.commentator_id = ' . $userId . '
-//                        and  p.image_id is not null order by c.created_at desc');
+
+        /*  получение данных через Sql запрос
+              $query = DB::select('select * from `comments` as c left join `posts` as p
+                              on p.id = c.post_id where c.commentator_id = ' . $userId . '
+                              and  p.image_id is not null order by c.created_at desc');
+
+        */
 
         return response()->json($query, 200);
     }

@@ -13,7 +13,7 @@ class Post extends Model
 
     public function images()
     {
-        return $this->hasOne('App\Image','image_id');
+        return $this->hasOne('App\Image','id','image_id');
     }
 
     public function comments()
